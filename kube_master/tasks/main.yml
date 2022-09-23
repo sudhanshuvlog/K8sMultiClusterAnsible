@@ -1,0 +1,82 @@
+---
+# tasks file for kube_master
+
+- package:
+        name: "docker"
+        
+- service:
+        name: "docker"
+        state: started
+        enabled: yes
+
+- copy:
+        src: kubernetes.repo
+        dest: /etc/yum.repos.d/kubernetes.repo
+
+- yum:
+        name: "kubelet, kubeadm, kubectl"
+        disable_excludes: "kubernetes"
+        state: latest
+
+- service:
+        name: "kubelet"
+        state: started
+        enabled: yes
+
+- command: "kubeadm config images pull"
+  when: false
+
+- copy:
+        src: daemon.json
+        dest: /etc/docker/daemon.json
+
+- service:
+        name: "docker"
+        state: restarted
+
+- package:
+        name: "iproute-tc"
+
+- command: "kubeadm init --pod-network-cidr={{ cidr_range }} --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem"
+  when: false
+
+- file:
+        path: $HOME/.kube
+        state: directory
+        owner: "{{ ansible_effective_user_id }}"
+        group: "{{ ansible_effective_group_id }}"
+  when: false
+
+- fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: /etc/ansible/roles/
+  when: false
+
+- copy: 
+       src: /etc/ansible/roles/52.66.252.150/etc/kubernetes/admin.conf
+       dest: $HOME/.kube/config
+  when: false
+
+- shell: "echo 3 > /proc/sys/vm/drop_caches"    
+
+- command: "kubectl apply  -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml"
+  when: false
+
+- lineinfile:
+        path: /var/run/flannel/subnet.env
+        regexp: "10.244.0.0/16"
+        line: "FLANNEL_NETWORK={{ cidr_range }}"
+  when: true
+
+- shell: kubeadm token create --print-join-command --v=5
+  register: "token"
+  when: false
+
+- debug:
+        msg: "{{ token }}"     
+  when: false
+
+- debug:
+     var: token.stdout_lines
+  register: token
+  when: false

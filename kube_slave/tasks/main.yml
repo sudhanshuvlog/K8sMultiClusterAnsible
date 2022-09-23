@@ -1,0 +1,55 @@
+---
+# tasks file for kube_slave
+
+- package:
+        name: "docker"
+        
+- service:
+        name: "docker"
+        state: started
+        enabled: yes
+
+- copy:
+        src: kubernetes.repo
+        dest: /etc/yum.repos.d/kubernetes.repo
+
+- yum:
+        name: "kubelet, kubeadm, kubectl"
+        disable_excludes: "kubernetes"
+        state: latest
+
+- service:
+        name: "kubelet"
+        state: started
+        enabled: yes
+
+- command: "kubeadm config images pull"
+  when: true
+
+- copy:
+        src: daemon.json
+        dest: /etc/docker/daemon.json
+
+- service:
+        name: "docker"
+        state: restarted
+  when: true
+
+- package:
+        name: "iproute-tc"
+
+- copy:
+        src: "k8s.conf"
+        dest: "/etc/sysctl.d/k8s.conf"
+
+- shell: "sysctl --system"
+
+- debug:
+        msg: '{{hostvars[groups["kube_master"][0]]}}'
+  when: false
+
+- shell: "kubeadm join 172.31.40.153:6443 --token {{ hostvars[groups['kube_master'][0]].token.token.stdout_lines }}"
+  when: false
+
+- command: "kubeadm join 172.31.4.33:6443 --token vr2gne.p1dirnwdtglqgm8s --discovery-token-ca-cert-hash sha256:c720878d9dfdf9a2ef00ad75950f83cff5da4151d89c65f355dd268eb0
+7b4b87" 
